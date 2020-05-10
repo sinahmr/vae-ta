@@ -1,0 +1,121 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath, amsfonts}
+\usepackage{hyperref}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+\title{VAE Review Notes}
+\author{SUT, CE-40959}
+\date{Spring 2020}
+
+\newcommand{\kl}[2]{\operatorname{KL}({#1} \; || \; {#2})}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+Variational Autoencoder is a deep generative model, working explicitly with the density function. \\
+Suppose we have a distribution on $X$ named $p_D(x)$. We want to model this distribution with a neural network ($\theta$), to be able to take new samples from it.
+
+What is an ordinary way to train the network and learn $\theta$? \\
+A natural training objective for learning $\theta$ is maximum likelihood:
+\begin{equation}
+    \label{eq:ml}
+    \underset{\theta}{\max} \; \mathbb{E}_{p_D(x)}[\log p_\theta(x)]
+\end{equation}
+
+Assuming that every data point is generated from an underlying latent representation $z$, we can write $p_\theta(x)$ as $p_\theta(x, z)$ marginalized on $z$. We can rewrite the equation \ref{eq:ml} as follows:
+\begin{equation}
+    \label{eq:intractable}
+    \mathbb{E}_{p_D(x)}[\log p_\theta(x)] = \mathbb{E}_{p_D(x)}[\log \int_z p_\theta(x|z) p(z) dz]
+\end{equation}
+This equation is intractable and can not be optimized in an efficient manner.
+
+\section{How to overcome intractability?}
+Until now we have a network ($\theta$) that maps from $z$ to $x$. This network provides us with a joint distribution on $X$ and $Z$ (Which is called a generative distribution):
+\begin{equation}
+    p_\theta(x, z) = p_\theta(x|z) p(z)
+\end{equation}
+
+We create another network ($\phi$) to map from $x$ to $z$. This network too, models a joint distribution on $X$ and $Z$ (Which is called an inference distribution):
+\begin{equation}
+    q_\phi(x, z) = q_\phi(z|x) p_D(x)
+\end{equation}
+The auxiliary $q_\phi(z|x)$ distribution can help us overcome intractability.
+
+We can now rewrite the intractable $\log \int_z p_\theta(x|z) p(z) dz$ in equation \ref{eq:intractable} as
+
+\begin{align}
+    \log \int_z p_\theta(x|z) p(z) dz &=
+    \log \int_z \frac{q_\phi(z|x)}{q_\phi(z|x)} p_\theta(x|z) p(z) dz \\
+    &= \log \int_z q_\phi(z|x) \frac{p_\theta(x|z) p(z)}{q_\phi(z|x)} dz \\
+    &= \log \mathbb{E}_{q_\phi(z|x)}[\frac{p_\theta(x|z) p(z)}{q_\phi(z|x)}] \\
+    &\ge \mathbb{E}_{q_\phi(z|x)}[\log \frac{p_\theta(x|z) p(z)}{q_\phi(z|x)}] \label{eq:jensen}\\
+    &= \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] + \mathbb{E}_{q_\phi(z|x)}[\log \frac{p(z)}{q_\phi(z|x)}] \\
+    &= \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - \kl{q_\phi(z|x)}{p(z)}
+\end{align}
+in which equation \ref{eq:jensen} is based on \href{https://en.wikipedia.org/wiki/Jensen\%27s_inequality}{Jensen's inequality}.
+
+\section{VAE Objective Function}
+We define the objective function for a specific $x$ as
+\begin{align}
+    \begin{split}
+        \mathcal{L}_{\text{ELBO}}(x) &= \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - \kl{q_\phi(z|x)}{p(z)} \\
+    &\le \log \int_z p_\theta(x|z) p(z) dz = \log p_\theta(x)
+    \end{split}
+\end{align}
+which, as shown in the equation, is a lower bound on log of likelihood.
+We also define the final objective function of the VAE as:
+\begin{equation}
+    \label{eq:elbo}
+    \underset{\phi, \theta}{\max} \; \mathcal{L}_{\text{ELBO}} = \mathbb{E}_{p_D(x)} \left[ \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - \kl{q_\phi(z|x)}{p(z)} \right]
+\end{equation}
+
+\section{How can we optimize \texorpdfstring{$\mathcal{L}_\text{ELBO}$}{ELBO}?}
+
+We know that we can estimate $\mathbb{E}_{f(u)}[g(u)]$ as $\frac{1}{N} \sum_{n=1}^{N} g(u_n)$ which $u_1, \dots, u_N$ are $N$ samples taken from the $f(u)$ distribution.
+Since we can take samples from both $p_D(x)$ and $q_\phi(z|x)$, we can compute both of the expectations of equation \ref{eq:elbo}.
+
+We can compute $\log p_\theta(x|z)$ analytically since the distribution is set to be either Gaussian or Bernoulli. (See theoretical problems)
+
+We can also compute $\kl{q_\phi(z|x)}{p(z)}$ analytically, since both distributions are set to be Gaussian. (See theoretical problems)
+
+So, all of the terms in the equation \ref{eq:elbo} can be computed efficiently, and we can optimize $\phi$ and $\theta$ to maximize it.
+
+\section{Equivalent Forms of the ELBO}
+$\mathcal{L}_\text{ELBO}$ has different forms, which may not be directly optimizable, but are useful in theoretical analyses. You may see these alternative forms in papers extending VAE framework.
+\begin{align}
+    \mathcal{L}_\text{ELBO} &\equiv -\kl{q_\phi(x, z)}{p_\theta(x, z)} \label{eq:equiv1}\\
+    &= -\kl{p_D(x)}{p_\theta(x)} - \mathbb{E}_{p_D(x)}[\kl{q_\phi(z|x)}{p_\theta(z|x)}] \label{eq:equiv2}\\
+    &= -\kl{q_\phi(z)}{p(z)} - \mathbb{E}_{q_\phi(z)}[\kl{q_\phi(x|z)}{p_\theta(x|z)}] \label{eq:equiv3}
+\end{align}
+
+Proof of the equation \ref{eq:equiv1}:
+\begin{align}
+    \begin{split}
+        \mathcal{L}_{\text{ELBO}} &= \mathbb{E}_{p_D(x)} \left[ \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - \kl{q_\phi(z|x)}{p(z)} \right] \\
+        &= \mathbb{E}_{p_D(x)} \left[ \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - \mathbb{E}_{q_\phi(z|x)}[\frac{q_\phi(z|x)}{p(z)}] \right] \\
+        &= \mathbb{E}_{q_\phi(x, z)} \left[ \log p_\theta(x|z) + \log p(z) - \log q_\phi(z|x) \right] \\
+        &= \mathbb{E}_{q_\phi(x, z)} \left[ \log p_\theta(x, z) - \log q_\phi(z|x) - \log p_D(x) + \log p_D(x) \right] \\
+        &= \mathbb{E}_{q_\phi(x, z)} \left[ \log p_\theta(x, z) - \log q_\phi(x, z) + \log p_D(x) \right] \\
+        &= \mathbb{E}_{q_\phi(x, z)} \left[ \log \frac{p_\theta(x, z)}{q_\phi(x, z)} + \log p_D(x) \right] \\
+        &= -\kl{q_\phi(x, z)}{p_\theta(x, z)} + \mathbb{E}_{p_D(x)} \left[ \log p_D(x) \right]
+    \end{split}
+\end{align}
+
+Since $\mathbb{E}_{p_D(x)}[\log p_D(x)]$ is a constant (entropy of a fixed distribution), optimizing $-\kl{q_\phi(x, z)}{p_\theta(x, z)}$ is equivalent to optimizing $\mathcal{L}_\text{ELBO}$. 
+
+Proofs of the equivalence of optimizing equations \ref{eq:equiv2} and \ref{eq:equiv3} to equation \ref{eq:elbo} are left for exercise.
+
+\bibliographystyle{ieeetr}
+\nocite{*}
+\bibliography{references.bib}
+\end{document}
