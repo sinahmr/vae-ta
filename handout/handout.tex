@@ -12,9 +12,10 @@
 }
 
 \title{VAE Review Notes}
-\author{SUT, CE-40959}
+\author{Sina Hajimiri \\SUT, CE-40719}
 \date{Spring 2020}
 
+\newcommand{\nm}{\Rightarrow \,}
 \newcommand{\kl}[2]{\operatorname{KL}({#1} \; || \; {#2})}
 
 \begin{document}
@@ -32,12 +33,12 @@ A natural training objective for learning $\theta$ is maximum likelihood:
     \underset{\theta}{\max} \; \mathbb{E}_{p_D(x)}[\log p_\theta(x)]
 \end{equation}
 
-Assuming that every data point is generated from an underlying latent representation $z$, we can write $p_\theta(x)$ as $p_\theta(x, z)$ marginalized on $z$. We can rewrite the equation \ref{eq:ml} as follows:
+Assuming that every data point is generated from an underlying latent representation $z$, we can write $p_\theta(x)$ as $p_\theta(x, z)$ marginalized on $z$. We can rewrite equation \ref{eq:ml} as follows:
 \begin{equation}
     \label{eq:intractable}
     \mathbb{E}_{p_D(x)}[\log p_\theta(x)] = \mathbb{E}_{p_D(x)}[\log \int_z p_\theta(x|z) p(z) dz]
 \end{equation}
-This equation is intractable and can not be optimized in an efficient manner.
+This equation is intractable and can not be optimized efficiently.
 
 \section{How to overcome intractability?}
 Until now we have a network ($\theta$) that maps from $z$ to $x$. This network provides us with a joint distribution on $X$ and $Z$ (Which is called a generative distribution):
@@ -80,15 +81,68 @@ We also define the final objective function of the VAE as:
 \end{equation}
 
 \section{How can we optimize \texorpdfstring{$\mathcal{L}_\text{ELBO}$}{ELBO}?}
-
-We know that we can estimate $\mathbb{E}_{f(u)}[g(u)]$ as $\frac{1}{N} \sum_{n=1}^{N} g(u_n)$ which $u_1, \dots, u_N$ are $N$ samples taken from the $f(u)$ distribution.
-Since we can take samples from both $p_D(x)$ and $q_\phi(z|x)$, we can compute both of the expectations of equation \ref{eq:elbo}.
-
-We can compute $\log p_\theta(x|z)$ analytically since the distribution is set to be either Gaussian or Bernoulli. (See theoretical problems)
-
-We can also compute $\kl{q_\phi(z|x)}{p(z)}$ analytically, since both distributions are set to be Gaussian. (See theoretical problems)
-
-So, all of the terms in the equation \ref{eq:elbo} can be computed efficiently, and we can optimize $\phi$ and $\theta$ to maximize it.
+We have 3 different kinds of elements in equation \ref{eq:elbo}, which we rewrite in turns.
+\begin{itemize}
+	\item Expectations:
+		We know that we can estimate an expectation $\mathbb{E}_{f(u)}[g(u)]$ as $\frac{1}{N} \sum_{n=1}^{N} g(u_n)$ which $u_1, \dots, u_N$ are $N$ samples taken from the $f(u)$ distribution. Since we can take samples from both $p_D(x)$ and $q_\phi(z|x)$, we can compute both of the expectations of equation \ref{eq:elbo}.
+	\item $\log p_\theta(x|z)$:
+		We can compute $\log p_\theta(x|z)$ analytically since the distribution is set to be either multivariate Bernoulli or multivariate Gaussian.
+		\begin{itemize}
+			\item Multivariate Bernoulli case: The output of the decoder (after a sigmoid layer) is denoted as $a$. We have:
+				\begin{equation}
+					\begin{alignedat}{4}
+						& p_\theta (x | z) = \text{Bern}(x; a) = \prod_{k=1}^{d} a_k^{x_k}\, (1-a_k)^{(1-x_k)} \span \span \\
+						\nm & \log p_\theta (x | z) && = \sum_{k=1}^{d} x_k \log(a_k) + (1-x_k) \log(1-a_k) \\
+						&&& = - \text{BCE}(x, a)
+					\end{alignedat}
+				\end{equation}
+			\item  Multivariate Gaussian case: The output of the decoder is denoted as $\mu$. Also, $\sigma^2$ is used in equations but in practice, it is usually set to $1$. We have:
+				\begin{equation}
+					\begin{alignedat}{6}
+						& p_\theta (x | z) && = \mathcal{N}(x; \mu, \sigma^2 I) \span \span \\
+						&&& = (2 \pi )^{-{\frac {d}{2}}} \det({\sigma^2 I})^{-{\frac {1}{2}}} \, e^{ -{\frac {1}{2}} (x -{\mu})^{\!{\mathsf {T}}}{(\sigma^2 I)}^{-1}(x -{\mu}) } \span \span \\
+						&&& = (2 \pi \sigma^2)^{-{\frac {d}{2}}} \, e^{ -{\frac {1}{2 \sigma^2}} {\Vert x -\mu \Vert}^2 } \span \span \\
+						\nm & \span \span \log p_\theta (x | z) && = -{\frac {d}{2}} \log(2 \pi \sigma^2) - {\frac {1}{2 \sigma^2}} {\Vert x - \mu \Vert}^2 \\
+						\span \span &&& = - {\frac {1}{2 \sigma^2}} {\Vert x - \mu \Vert}^2 + \text{const} \\
+						\span \span &&& \equiv - {\frac {1}{2 \sigma^2}} \, \text{MSE}(x, \mu)
+					\end{alignedat}
+				\end{equation}
+		\end{itemize}
+	\item $\kl{q_\phi(z|x)}{p(z)}]$:
+		This term can be computed analytically too, since both distributions are set to be Gaussian. \\
+		We know that for two multivariate Gaussian distributions as
+		\begin{equation}
+			\begin{alignedat}{2}
+				q(z) &= \mathcal{N}(z; \mu_1, \Sigma_1)  \\
+				p(z) &= \mathcal{N}(z; \mu_2, \Sigma_2)
+			\end{alignedat}
+		\end{equation}
+		their KL divergence can be computed as following:
+		\begin{equation}
+			\begin{alignedat}{2}
+				\kl{q(z)}{p(z)} &= \frac{1}{2} \biggl[ \log\frac{|\Sigma_2|}{|\Sigma_1|} - d + \text{tr} \{ \Sigma_2^{-1}\Sigma_1 \} \\
+				& \qquad \quad  + (\mu_2 - \mu_1)^T \Sigma_2^{-1}(\mu_2 - \mu_1) \biggr]
+			\end{alignedat}
+		\end{equation}
+		By setting
+		\begin{equation}
+			\begin{alignedat}{2}
+				p(z) &= \mathcal{N}(z; 0, I) \\
+				q(z) &= q_\phi(z|x) = \mathcal{N}(z; \mu, \Sigma)
+			\end{alignedat}
+		\end{equation}		
+		where $\mu = (\mu_1, \dots, \mu_d)$ and $\Sigma = \text{diag}(\sigma_1^2, \dots, \sigma_d^2)$, the KL term of equation \ref{eq:elbo} can be computed as following:
+		\begin{equation}
+			\begin{alignedat}{2}
+				\kl{q_\phi(z|x)}{p(z)} & = \frac{1}{2} \biggl[ \log(\frac{|I|}{|\Sigma|}) - d + \text{tr} \{ I^{-1}\Sigma \} \\
+				& \qquad \quad + (0 - \mu)^T I^{-1}(0 - \mu) \biggr] \\
+                & = \frac{1}{2}\left[-\log({|\Sigma|}) - d + \text{tr} \{ \Sigma \} + \mu^T \mu\right] \\
+                & = \frac{1}{2}\left[-\log(\prod_i\sigma_i^2) - d + \sum_i\sigma_i^2 + \sum_i\mu^2_i\right] \\
+                & = \frac{1}{2}\left[-\sum_i\log(\sigma_i^2) - d + \sum_i\sigma_i^2 + \sum_i\mu^2_i\right]
+			\end{alignedat}
+		\end{equation}
+\end{itemize}
+So, all of the terms in equation \ref{eq:elbo} can be computed efficiently, and we can optimize $\phi$ and $\theta$ to maximize the equation.
 
 \section{Equivalent Forms of the ELBO}
 $\mathcal{L}_\text{ELBO}$ has different forms, which may not be directly optimizable, but are useful in theoretical analyses. You may see these alternative forms in papers extending VAE framework.
@@ -98,7 +152,7 @@ $\mathcal{L}_\text{ELBO}$ has different forms, which may not be directly optimiz
     &= -\kl{q_\phi(z)}{p(z)} - \mathbb{E}_{q_\phi(z)}[\kl{q_\phi(x|z)}{p_\theta(x|z)}] \label{eq:equiv3}
 \end{align}
 
-Proof of the equation \ref{eq:equiv1}:
+Proof of equation \ref{eq:equiv1}:
 \begin{align}
     \begin{split}
         \mathcal{L}_{\text{ELBO}} &= \mathbb{E}_{p_D(x)} \left[ \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - \kl{q_\phi(z|x)}{p(z)} \right] \\
