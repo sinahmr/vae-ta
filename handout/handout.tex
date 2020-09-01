@@ -33,7 +33,7 @@ A natural training objective for learning $\theta$ is maximum likelihood:
     \underset{\theta}{\max} \; \mathbb{E}_{p_D(x)}[\log p_\theta(x)]
 \end{equation}
 
-Assuming that every data point is generated from an underlying latent representation $z$, we can write $p_\theta(x)$ as $p_\theta(x, z)$ marginalized on $z$. We can rewrite equation \ref{eq:ml} as follows:
+Assuming that every data point is generated from an underlying latent representation $z$, we can write $p_\theta(x)$ as $p_\theta(x, z)$ marginalized on $z$. So we can rewrite equation \ref{eq:ml} as follows:
 \begin{equation}
     \label{eq:intractable}
     \mathbb{E}_{p_D(x)}[\log p_\theta(x)] = \mathbb{E}_{p_D(x)}[\log \int_z p_\theta(x|z) p(z) dz]
@@ -46,7 +46,7 @@ Until now we have a network ($\theta$) that maps from $z$ to $x$. This network p
     p_\theta(x, z) = p_\theta(x|z) p(z)
 \end{equation}
 
-We create another network ($\phi$) to map from $x$ to $z$. This network too, models a joint distribution on $X$ and $Z$ (Which is called an inference distribution):
+We create another network ($\phi$) to map from $x$ to $z$. This network, too, models a joint distribution on $X$ and $Z$ (Which is called an inference distribution):
 \begin{equation}
     q_\phi(x, z) = q_\phi(z|x) p_D(x)
 \end{equation}
@@ -65,7 +65,7 @@ We can now rewrite the intractable $\log \int_z p_\theta(x|z) p(z) dz$ in equati
 \end{align}
 in which equation \ref{eq:jensen} is based on \href{https://en.wikipedia.org/wiki/Jensen\%27s_inequality}{Jensen's inequality}.
 
-\section{VAE Objective Function}
+\section{VAE objective function}
 We define the objective function for a specific $x$ as
 \begin{align}
     \begin{split}
@@ -73,7 +73,7 @@ We define the objective function for a specific $x$ as
     &\le \log \int_z p_\theta(x|z) p(z) dz = \log p_\theta(x)
     \end{split}
 \end{align}
-which, as shown in the equation, is a lower bound on log of likelihood.
+which, as shown in the equation, is a lower bound on the log of likelihood.
 We also define the final objective function of the VAE as:
 \begin{equation}
     \label{eq:elbo}
@@ -96,7 +96,7 @@ We have 3 different kinds of elements in equation \ref{eq:elbo}, which we rewrit
 						&&& = - \text{BCE}(x, a)
 					\end{alignedat}
 				\end{equation}
-			\item  Multivariate Gaussian case: The output of the decoder is denoted as $\mu$. Also, $\sigma^2$ is used in equations but in practice, it is usually set to $1$. We have:
+			\item  Multivariate Gaussian case: The output of the decoder is denoted as $\mu$. $\sigma^2$, too, is used in the equations, but in practice, it is usually set to $1$. We have:
 				\begin{equation}
 					\begin{alignedat}{6}
 						& p_\theta (x | z) && = \mathcal{N}(x; \mu, \sigma^2 I) \span \span \\
@@ -117,7 +117,7 @@ We have 3 different kinds of elements in equation \ref{eq:elbo}, which we rewrit
 				p(z) &= \mathcal{N}(z; \mu_2, \Sigma_2)
 			\end{alignedat}
 		\end{equation}
-		their KL divergence can be computed as following:
+		their KL divergence can be computed as:
 		\begin{equation}
 			\begin{alignedat}{2}
 				\kl{q(z)}{p(z)} &= \frac{1}{2} \biggl[ \log\frac{|\Sigma_2|}{|\Sigma_1|} - d + \text{tr} \{ \Sigma_2^{-1}\Sigma_1 \} \\
@@ -131,7 +131,7 @@ We have 3 different kinds of elements in equation \ref{eq:elbo}, which we rewrit
 				q(z) &= q_\phi(z|x) = \mathcal{N}(z; \mu, \Sigma)
 			\end{alignedat}
 		\end{equation}		
-		where $\mu = (\mu_1, \dots, \mu_d)$ and $\Sigma = \text{diag}(\sigma_1^2, \dots, \sigma_d^2)$, the KL term of equation \ref{eq:elbo} can be computed as following:
+		where $\mu = (\mu_1, \dots, \mu_d)$ and $\Sigma = \text{diag}(\sigma_1^2, \dots, \sigma_d^2)$, the KL term of equation \ref{eq:elbo} can be computed as follows:
 		\begin{equation}
 			\begin{alignedat}{2}
 				\kl{q_\phi(z|x)}{p(z)} & = \frac{1}{2} \biggl[ \log(\frac{|I|}{|\Sigma|}) - d + \text{tr} \{ I^{-1}\Sigma \} \\
@@ -144,8 +144,8 @@ We have 3 different kinds of elements in equation \ref{eq:elbo}, which we rewrit
 \end{itemize}
 So, all of the terms in equation \ref{eq:elbo} can be computed efficiently, and we can optimize $\phi$ and $\theta$ to maximize the equation.
 
-\section{Equivalent Forms of the ELBO}
-$\mathcal{L}_\text{ELBO}$ has different forms, which may not be directly optimizable, but are useful in theoretical analyses. You may see these alternative forms in papers extending VAE framework.
+\section{Equivalent forms of the ELBO}
+$\mathcal{L}_\text{ELBO}$ has different forms, which may not be directly optimizable, but are useful in theoretical analyses. You may see these alternative forms in papers extending the VAE framework.
 \begin{align}
     \mathcal{L}_\text{ELBO} &\equiv -\kl{q_\phi(x, z)}{p_\theta(x, z)} \label{eq:equiv1}\\
     &= -\kl{p_D(x)}{p_\theta(x)} - \mathbb{E}_{p_D(x)}[\kl{q_\phi(z|x)}{p_\theta(z|x)}] \label{eq:equiv2}\\
@@ -165,7 +165,7 @@ Proof of equation \ref{eq:equiv1}:
     \end{split}
 \end{align}
 
-Since $\mathbb{E}_{p_D(x)}[\log p_D(x)]$ is a constant (entropy of a fixed distribution), optimizing $-\kl{q_\phi(x, z)}{p_\theta(x, z)}$ is equivalent to optimizing $\mathcal{L}_\text{ELBO}$. 
+Since $\mathbb{E}_{p_D(x)}[\log p_D(x)]$ is a constant (negative of the entropy of a fixed distribution), optimizing $-\kl{q_\phi(x, z)}{p_\theta(x, z)}$ is equivalent to optimizing $\mathcal{L}_\text{ELBO}$. 
 
 Proofs of the equivalence of optimizing equations \ref{eq:equiv2} and \ref{eq:equiv3} to equation \ref{eq:elbo} are left for exercise.
 
